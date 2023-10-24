@@ -1,5 +1,7 @@
 use std::{io::Error, str::FromStr};
 
+pub const BIT5_FLAG: u8 = 0x20;
+
 #[derive(Debug, PartialEq, Eq)]
 pub struct ChunkType {
     pub ancillary_bit: u8,
@@ -13,13 +15,23 @@ impl TryFrom<[u8; 4]> for ChunkType {
 
     fn try_from(value: [u8; 4]) -> Result<Self, Self::Error> {
         let [ancillary_bit, private_bit, reserved_bit, stc_bit] = value;
-
-        Ok(ChunkType {
+        let chunk = Self {
             ancillary_bit,
             private_bit,
             reserved_bit,
             stc_bit,
-        })
+        };
+
+        if chunk.is_valid() {
+            return Ok(chunk);
+        }
+
+        return Err(Error::new(
+            std::io::ErrorKind::Unsupported,
+            format!("Con not convert {:?} to ChunkType", value),
+        ));
+
+        // Ok(chunk)
     }
 }
 
@@ -28,7 +40,21 @@ impl FromStr for ChunkType {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match <&[u8] as TryInto<[u8; 4]>>::try_into(s.as_bytes()) {
-            Ok(bytes) => bytes.try_into(),
+            Ok(bytes) => {
+                if bytes.iter().all(Self::is_valid_symbol) {
+                    return Ok(Self {
+                        ancillary_bit: bytes[0],
+                        private_bit: bytes[1],
+                        reserved_bit: bytes[2],
+                        stc_bit: bytes[3],
+                    });
+                }
+
+                Err(Error::new(
+                    std::io::ErrorKind::Unsupported,
+                    format!("Unsupported str: {}", s),
+                ))
+            }
             Err(err) => Err(Error::new(std::io::ErrorKind::Unsupported, err)),
         }
     }
@@ -37,24 +63,24 @@ impl FromStr for ChunkType {
 impl std::fmt::Display for ChunkType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if self.is_valid() {
-            return writeln!(
+            return write!(
                 f,
                 "{}",
                 std::str::from_utf8(self.bytes().as_slice()).unwrap()
             );
         }
 
-        return writeln!(f, "ChunkType is invalid");
+        return write!(f, "ChunkType is invalid");
     }
 }
 
 impl ChunkType {
-    pub fn bit5_is_0(byte: u8) -> bool {
-        byte & 0x20 == 0
+    fn is_uppercase(s: &u8) -> bool {
+        65 <= *s && *s <= 90
     }
 
-    pub fn is_valid_symbol(s: u8) -> bool {
-        (65 <= s && s <= 90) || (97 <= s && s <= 122)
+    fn is_valid_symbol(s: &u8) -> bool {
+        (65 <= *s && *s <= 90) || (97 <= *s && *s <= 122)
     }
 
     pub fn bytes(&self) -> [u8; 4] {
@@ -67,43 +93,36 @@ impl ChunkType {
     }
 
     pub fn is_valid(&self) -> bool {
-        let is_uppercase = |n| (97 <= n && n <= 122);
-
-        if !self
-            .bytes()
-            .as_slice()
-            .into_iter()
-            .all(|&n| ChunkType::is_valid_symbol(n))
-        {
+        if !self.bytes().iter().all(Self::is_valid_symbol) {
             return false;
         }
 
         let [a, b, c, d] = self.bytes();
 
-        is_uppercase(c)
-            && ChunkType::bit5_is_0(c)
+        Self::is_uppercase(&c)
+            && c & BIT5_FLAG == 0
             && [a, b, d]
-                .into_iter()
-                .all(|x| match (is_uppercase(x), ChunkType::bit5_is_0(x)) {
+                .iter()
+                .all(|x| match (Self::is_uppercase(x), x & BIT5_FLAG == 0) {
                     (true, true) | (false, false) => true,
                     _ => false,
                 })
     }
 
     pub fn is_critical(&self) -> bool {
-        self.ancillary_bit & 0x20 == 0
+        self.ancillary_bit & BIT5_FLAG == 0
     }
 
     pub fn is_public(&self) -> bool {
-        self.private_bit & 0x20 == 0
+        self.private_bit & BIT5_FLAG == 0
     }
 
     pub fn is_reserved_bit_valid(&self) -> bool {
-        self.reserved_bit & 0x20 == 0
+        self.reserved_bit & BIT5_FLAG == 0
     }
 
     pub fn is_safe_to_copy(&self) -> bool {
-        self.stc_bit & 0x20 != 0
+        self.stc_bit & BIT5_FLAG != 0
     }
 }
 
