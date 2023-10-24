@@ -26,12 +26,10 @@ impl TryFrom<[u8; 4]> for ChunkType {
             return Ok(chunk);
         }
 
-        return Err(Error::new(
+        Err(Error::new(
             std::io::ErrorKind::Unsupported,
             format!("Con not convert {:?} to ChunkType", value),
-        ));
-
-        // Ok(chunk)
+        ))
     }
 }
 
@@ -70,7 +68,7 @@ impl std::fmt::Display for ChunkType {
             );
         }
 
-        return write!(f, "ChunkType is invalid");
+        write!(f, "ChunkType is invalid")
     }
 }
 
