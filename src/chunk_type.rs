@@ -49,6 +49,14 @@ impl std::fmt::Display for ChunkType {
 }
 
 impl ChunkType {
+    pub fn bit5_is_0(byte: u8) -> bool {
+        byte & 0x20 == 0
+    }
+
+    pub fn is_valid_symbol(s: u8) -> bool {
+        (65 <= s && s <= 90) || (97 <= s && s <= 122)
+    }
+
     pub fn bytes(&self) -> [u8; 4] {
         [
             self.ancillary_bit,
@@ -59,19 +67,27 @@ impl ChunkType {
     }
 
     pub fn is_valid(&self) -> bool {
-        // for (idx, num) in self.bytes().into_iter().enumerate() {}
+        let is_uppercase = |n| (97 <= n && n <= 122);
 
-        // let is_valid_letters = |num_arr: &[u8]| {
-        //     num_arr
-        //         .into_iter()
-        //         .all(|&n| (65 <= n && n <= 90) || (97 <= n && n <= 122))
-        // };
+        if !self
+            .bytes()
+            .as_slice()
+            .into_iter()
+            .all(|&n| ChunkType::is_valid_symbol(n))
+        {
+            return false;
+        }
 
-        // if let [a, b, c, d] = self.bytes() {
-        //     return is_valid_letters([a, b, c, d].as_slice()) && a ;
-        // }
+        let [a, b, c, d] = self.bytes();
 
-        true
+        is_uppercase(c)
+            && ChunkType::bit5_is_0(c)
+            && [a, b, d]
+                .into_iter()
+                .all(|x| match (is_uppercase(x), ChunkType::bit5_is_0(x)) {
+                    (true, true) | (false, false) => true,
+                    _ => false,
+                })
     }
 
     pub fn is_critical(&self) -> bool {
