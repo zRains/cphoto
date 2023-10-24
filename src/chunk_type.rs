@@ -74,11 +74,11 @@ impl std::fmt::Display for ChunkType {
 
 impl ChunkType {
     fn is_uppercase(s: &u8) -> bool {
-        65 <= *s && *s <= 90
+        u8::is_ascii_uppercase(s)
     }
 
     fn is_valid_symbol(s: &u8) -> bool {
-        (65 <= *s && *s <= 90) || (97 <= *s && *s <= 122)
+        u8::is_ascii(s) && (65 <= *s && *s <= 90) || (97 <= *s && *s <= 122)
     }
 
     pub fn bytes(&self) -> [u8; 4] {
