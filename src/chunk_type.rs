@@ -1,6 +1,6 @@
 use std::{io::Error, str::FromStr};
 
-pub const BIT5_FLAG: u8 = 0x20;
+const BIT5_FLAG: u8 = 0x20;
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct ChunkType {
