@@ -1,19 +1,22 @@
-use clap::Parser;
-use commands::Commands;
-
 mod args;
 mod chunk;
 mod chunk_type;
 mod commands;
 mod png;
 
-pub type Error = Box<dyn std::error::Error>;
-pub type Result<T> = std::result::Result<T, Error>;
+use clap::Parser;
+use commands::{Cmd, Commands};
+use std::io::Error;
 
-fn main() -> Result<()> {
-    let args = args::EncodeCmdArgs::parse();
+fn main() -> Result<(), Error> {
+    let cmds = Commands::parse();
 
-    Commands::encode(&args)?;
+    match cmds.cmd {
+        Cmd::Encode(args) => Commands::encode(&args)?,
+        Cmd::Decode(args) => println!("Decode message:\n{}", Commands::decode(&args)?),
+        Cmd::Remove(args) => Commands::remove(&args)?,
+        Cmd::Print(args) => println!("{}", Commands::print(&args)?),
+    };
 
     Ok(())
 }
