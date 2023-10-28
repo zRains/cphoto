@@ -1,8 +1,5 @@
-use std::io::{BufReader, Error, ErrorKind, Read};
-
 use crate::chunk::Chunk;
-
-// pub const STANDARD_HEADER: [u8; 8] = [137, 80, 78, 71, 13, 10, 26, 10];
+use std::io::{BufReader, Error, ErrorKind, Read};
 
 pub struct Png {
     pub header: [u8; 8],
@@ -17,7 +14,7 @@ fn chunk_reader(reader: &mut BufReader<&[u8]>) -> Result<Chunk, Error> {
     reader.read_exact(&mut c_len)?;
     reader.read_exact(&mut c_type)?;
 
-    let mut c_data = Vec::<u8>::with_capacity(u32::from_be_bytes(c_len) as usize);
+    let mut c_data = vec![0u8; u32::from_be_bytes(c_len) as usize];
 
     reader.read_exact(&mut c_data)?;
     reader.read_exact(&mut c_crc)?;
@@ -51,27 +48,17 @@ impl TryFrom<&[u8]> for Png {
         }
 
         let head_chunk = chunk_reader(&mut reader)?;
-
-        if head_chunk.chunk_type().to_string() != "IHDR" {
-            return Err(Error::new(
-                ErrorKind::Unsupported,
-                format!(
-                    "File head chunk: {:?} is invalid",
-                    head_chunk.chunk_type().to_string()
-                ),
-            ));
-        }
-
         let mut chunks = vec![head_chunk];
 
         loop {
-            let data_chunk = chunk_reader(&mut reader)?;
-            let data_chunk_type = data_chunk.chunk_type().to_string();
-
-            chunks.push(data_chunk);
-
-            if data_chunk_type == "IEND" {
-                break;
+            match chunk_reader(&mut reader) {
+                Ok(data_chunk) => chunks.push(data_chunk),
+                Err(err) => match err.kind() {
+                    ErrorKind::UnexpectedEof => break,
+                    _ => {
+                        return Err(Error::new(ErrorKind::Unsupported, "Invalid data."));
+                    }
+                },
             }
         }
 
@@ -81,7 +68,7 @@ impl TryFrom<&[u8]> for Png {
 
 impl std::fmt::Display for Png {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        todo!()
+        write!(f, "dsd")
     }
 }
 
